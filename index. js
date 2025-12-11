@@ -1,1 +1,68 @@
+require("dotenv").config();
+const { Client, GatewayIntentBits, Partials, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildMembers
+    ]
+});
+
+const palabras = ["dragón", "bosque", "piedra", "sombra", "universo", "luz"];
+const jugadores = new Map();
+
+client.once("ready", () => {
+    console.log(`Bot listo como: ${client.user.tag}`);
+});
+
+client.on("interactionCreate", async (i) => {
+    if (!i.isButton()) return;
+
+    if (i.customId === "entrar_juego") {
+        jugadores.set(i.user.id, true);
+        await i.reply({ content: "Te has unido al juego", ephemeral: true });
+    }
+
+    if (i.customId === "iniciar_juego") {
+        const lista = [...jugadores.keys()];
+        if (lista.length < 2) {
+            return i.reply({ content: "Se necesitan mínimo 2 jugadores.", ephemeral: true });
+        }
+
+        const palabra = palabras[Math.floor(Math.random() * palabras.length)];
+        const impostor = lista[Math.floor(Math.random() * lista.length)];
+
+        for (const id of lista) {
+            const user = await client.users.fetch(id);
+
+            if (id === impostor) {
+                user.send("❌ **Eres el IMPOSTOR**. No recibes palabra.");
+            } else {
+                user.send("✔️ Tu palabra es: **" + palabra + "**");
+            }
+        }
+
+        return i.reply("Juego iniciado. Los roles fueron enviados por DM.");
+    }
+});
+
+client.on("messageCreate", async (msg) => {
+    if (msg.content === "!jugar") {
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId("entrar_juego")
+                .setLabel("Entrar al juego")
+                .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+                .setCustomId("iniciar_juego")
+                .setLabel("Iniciar")
+                .setStyle(ButtonStyle.Primary)
+        );
+
+        await msg.reply({ content: "🎮 Bot de impostor listo:", components: [row] });
+    }
+});
+
+client.login(process.env.TOKEN);
